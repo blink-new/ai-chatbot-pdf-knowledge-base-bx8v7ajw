@@ -37,7 +37,7 @@ export function ChatInterface({ documents, messages, onMessageSent }: ChatInterf
       type: 'user',
       content: input.trim(),
       timestamp: new Date().toISOString(),
-      userId: (await blink.auth.me()).id
+      user_id: (await blink.auth.me()).id
     }
 
     onMessageSent(userMessage)
@@ -51,8 +51,8 @@ export function ChatInterface({ documents, messages, onMessageSent }: ChatInterf
           try {
             // Fetch text chunks for this document
             const chunks = await blink.db.textChunks.list({
-              where: { documentId: doc.id },
-              orderBy: { chunkIndex: 'asc' }
+              where: { document_id: doc.id },
+              orderBy: { chunk_index: 'asc' }
             })
 
             if (chunks.length === 0) {
@@ -118,7 +118,7 @@ export function ChatInterface({ documents, messages, onMessageSent }: ChatInterf
           relevanceScore: source.score,
           snippet: source.chunk.substring(0, 150) + (source.chunk.length > 150 ? '...' : '')
         })),
-        userId: (await blink.auth.me()).id,
+        user_id: (await blink.auth.me()).id,
         confidence: aiResult.confidence
       }
 
@@ -133,7 +133,7 @@ export function ChatInterface({ documents, messages, onMessageSent }: ChatInterf
         content: `I apologize, but I encountered an error while processing your question: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again or rephrase your question.`,
         timestamp: new Date().toISOString(),
         sources: [],
-        userId: (await blink.auth.me()).id
+        user_id: (await blink.auth.me()).id
       }
       
       onMessageSent(errorResponse)

@@ -17,8 +17,8 @@ function App() {
     if (!user) return
     try {
       const docs = await blink.db.documents.list({
-        where: { userId: user.id },
-        orderBy: { uploadedAt: 'desc' }
+        where: { user_id: user.id },
+        orderBy: { uploaded_at: 'desc' }
       })
       setDocuments(docs)
     } catch (error) {
@@ -30,7 +30,7 @@ function App() {
     if (!user) return
     try {
       const msgs = await blink.db.chatMessages.list({
-        where: { userId: user.id },
+        where: { user_id: user.id },
         orderBy: { timestamp: 'asc' }
       })
       setMessages(msgs)

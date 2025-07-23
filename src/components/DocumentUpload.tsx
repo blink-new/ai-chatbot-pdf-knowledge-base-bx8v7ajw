@@ -58,11 +58,11 @@ export function DocumentUpload({ onDocumentUploaded }: DocumentUploadProps) {
         id: processedDoc.id,
         name: processedDoc.filename,
         size: file.size,
-        uploadedAt: new Date().toISOString(),
+        uploaded_at: new Date().toISOString(),
         status: 'ready' as const,
-        userId: user.id,
-        pageCount: processedDoc.pageCount,
-        processingTime: processedDoc.processingTime,
+        user_id: user.id,
+        page_count: processedDoc.pageCount,
+        processing_time: processedDoc.processingTime,
         url: publicUrl
       })
 
@@ -70,10 +70,11 @@ export function DocumentUpload({ onDocumentUploaded }: DocumentUploadProps) {
       const chunkPromises = processedDoc.chunks.map((chunk, index) => {
         return blink.db.textChunks.create({
           id: `chunk_${processedDoc.id}_${index}`,
-          documentId: processedDoc.id,
+          document_id: processedDoc.id,
           content: chunk,
-          chunkIndex: index,
-          userId: user.id
+          page_number: 1, // Default to page 1 for now
+          chunk_index: index,
+          user_id: user.id
         })
       })
 

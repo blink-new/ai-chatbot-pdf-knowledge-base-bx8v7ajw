@@ -2,18 +2,27 @@ export interface Document {
   id: string
   name: string
   size: number
-  uploadedAt: string
+  uploaded_at: string
   status: 'processing' | 'ready' | 'error'
   chunks?: TextChunk[]
-  userId: string
+  user_id: string
+  page_count?: number
+  processing_time?: number
+  url?: string
+  processedData?: {
+    chunks: string[]
+    vectors: number[][]
+    vocabulary: string[]
+  }
 }
 
 export interface TextChunk {
   id: string
-  documentId: string
+  document_id: string
   content: string
-  pageNumber: number
-  chunkIndex: number
+  page_number: number
+  chunk_index: number
+  user_id: string
   tfidfVector?: number[]
 }
 
@@ -23,7 +32,7 @@ export interface ChatMessage {
   content: string
   timestamp: string
   sources?: SourceCitation[]
-  userId: string
+  user_id: string
   confidence?: number
 }
 
