@@ -24,6 +24,7 @@ export interface ChatMessage {
   timestamp: string
   sources?: SourceCitation[]
   userId: string
+  confidence?: number
 }
 
 export interface SourceCitation {

@@ -1,10 +1,10 @@
 import { useState, useCallback } from 'react'
-import { Upload, FileText, X, Loader2 } from 'lucide-react'
+import { Upload, Loader2 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { blink } from '@/blink/client'
 import { Document } from '@/types'
+import { processPDF } from '@/utils/pdfProcessor'
 
 interface DocumentUploadProps {
   onDocumentUploaded: (document: Document) => void
@@ -32,7 +32,7 @@ export function DocumentUpload({ onDocumentUploaded }: DocumentUploadProps) {
     }
 
     setIsUploading(true)
-    setUploadProgress(0)
+    setUploadProgress(20)
 
     try {
       const user = await blink.auth.me()
@@ -43,31 +43,56 @@ export function DocumentUpload({ onDocumentUploaded }: DocumentUploadProps) {
         `documents/${file.name}`,
         {
           upsert: true,
-          onProgress: (percent) => setUploadProgress(percent)
+          onProgress: (percent) => setUploadProgress(20 + (percent * 0.3))
         }
       )
 
-      // Create document record
+      setUploadProgress(50)
+
+      // Process PDF and extract text
+      const processedDoc = await processPDF(file)
+      setUploadProgress(80)
+
+      // Create document record with processed data
       const document = await blink.db.documents.create({
-        id: `doc_${Date.now()}`,
-        name: file.name,
+        id: processedDoc.id,
+        name: processedDoc.filename,
         size: file.size,
         uploadedAt: new Date().toISOString(),
-        status: 'processing' as const,
-        userId: user.id
+        status: 'ready' as const,
+        userId: user.id,
+        pageCount: processedDoc.pageCount,
+        processingTime: processedDoc.processingTime,
+        url: publicUrl
       })
 
-      onDocumentUploaded(document)
+      // Store text chunks for search
+      const chunkPromises = processedDoc.chunks.map((chunk, index) => {
+        return blink.db.textChunks.create({
+          id: `chunk_${processedDoc.id}_${index}`,
+          documentId: processedDoc.id,
+          content: chunk,
+          chunkIndex: index,
+          userId: user.id
+        })
+      })
 
-      // Start processing in background
-      setTimeout(() => {
-        // Simulate processing completion
-        blink.db.documents.update(document.id, { status: 'ready' })
-      }, 3000)
+      await Promise.all(chunkPromises)
+      setUploadProgress(100)
+
+      // Store processed data in memory for immediate use
+      const documentWithData = document as any
+      documentWithData.processedData = {
+        chunks: processedDoc.chunks,
+        vectors: processedDoc.vectors,
+        vocabulary: processedDoc.vocabulary
+      }
+
+      onDocumentUploaded(documentWithData)
 
     } catch (error) {
       console.error('Upload failed:', error)
-      alert('Upload failed. Please try again.')
+      alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsUploading(false)
       setUploadProgress(0)
@@ -108,7 +133,7 @@ export function DocumentUpload({ onDocumentUploaded }: DocumentUploadProps) {
             <div className="space-y-4">
               <Loader2 className="mx-auto h-12 w-12 animate-spin text-primary" />
               <div className="space-y-2">
-                <p className="text-sm font-medium">Uploading document...</p>
+                <p className="text-sm font-medium">Processing PDF...</p>
                 <Progress value={uploadProgress} className="w-full" />
                 <p className="text-xs text-muted-foreground">{uploadProgress}% complete</p>
               </div>
