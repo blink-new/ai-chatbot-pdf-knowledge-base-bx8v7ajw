@@ -124,8 +124,16 @@ export function findRelevantChunks(
   vocabulary: string[],
   topK: number = 3
 ): { chunk: string; score: number; index: number }[] {
+  console.log('findRelevantChunks called:', { query, chunksCount: chunks.length, vectorsCount: vectors.length, vocabularySize: vocabulary.length });
+  
   // Process query
   const queryTokens = preprocessText(query);
+  console.log('Query tokens:', queryTokens);
+  
+  if (queryTokens.length === 0) {
+    console.warn('No valid tokens found in query');
+    return [];
+  }
   
   // Create query vector
   const queryVector: number[] = [];
@@ -134,6 +142,8 @@ export function findRelevantChunks(
     queryVector.push(tf);
   }
   
+  console.log('Query vector created, non-zero elements:', queryVector.filter(v => v > 0).length);
+  
   // Calculate similarities
   const similarities = vectors.map((vector, index) => ({
     chunk: chunks[index],
@@ -141,9 +151,15 @@ export function findRelevantChunks(
     index
   }));
   
+  console.log('Similarities calculated:', similarities.map(s => ({ index: s.index, score: s.score.toFixed(3) })));
+  
   // Sort by similarity and return top K
-  return similarities
+  const results = similarities
     .sort((a, b) => b.score - a.score)
     .slice(0, topK)
-    .filter(item => item.score > 0.05); // Filter out very low relevance
+    .filter(item => item.score > 0.01); // Lower threshold for debugging
+    
+  console.log('Final results:', results.length, 'chunks with scores:', results.map(r => r.score.toFixed(3)));
+  
+  return results;
 }

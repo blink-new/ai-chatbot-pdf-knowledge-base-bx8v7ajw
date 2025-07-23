@@ -23,6 +23,17 @@ export async function generateAIResponse(
   }>
 ): Promise<AIResponse> {
   try {
+    console.log('generateAIResponse called with:', { query, documentsCount: documents.length });
+    
+    // Validate input
+    if (!query.trim()) {
+      throw new Error('Query cannot be empty');
+    }
+    
+    if (documents.length === 0) {
+      throw new Error('No documents provided');
+    }
+
     // Find relevant chunks from all documents
     const allRelevantChunks: Array<{
       chunk: string;
@@ -32,6 +43,18 @@ export async function generateAIResponse(
     }> = [];
 
     for (const doc of documents) {
+      console.log(`Processing document: ${doc.filename}, chunks: ${doc.chunks.length}, vectors: ${doc.vectors.length}`);
+      
+      if (doc.chunks.length === 0) {
+        console.warn(`Document ${doc.filename} has no chunks, skipping`);
+        continue;
+      }
+      
+      if (doc.vectors.length !== doc.chunks.length) {
+        console.warn(`Document ${doc.filename} has mismatched chunks (${doc.chunks.length}) and vectors (${doc.vectors.length})`);
+        continue;
+      }
+
       const relevantChunks = findRelevantChunks(
         query,
         doc.chunks,
@@ -39,6 +62,8 @@ export async function generateAIResponse(
         doc.vocabulary,
         3
       );
+
+      console.log(`Found ${relevantChunks.length} relevant chunks for ${doc.filename}`);
 
       relevantChunks.forEach(chunk => {
         allRelevantChunks.push({

@@ -45,36 +45,66 @@ export function ChatInterface({ documents, messages, onMessageSent }: ChatInterf
     setIsLoading(true)
 
     try {
-      // Get processed document data
-      const processedDocs = readyDocuments.map(doc => {
-        // Try to get processed data from memory first
-        const processedData = (doc as any).processedData
-        if (processedData) {
-          return {
-            id: doc.id,
-            filename: doc.name,
-            chunks: processedData.chunks,
-            vectors: processedData.vectors,
-            vocabulary: processedData.vocabulary
+      // Get processed document data by fetching chunks from database
+      const processedDocs = await Promise.all(
+        readyDocuments.map(async (doc) => {
+          try {
+            // Fetch text chunks for this document
+            const chunks = await blink.db.textChunks.list({
+              where: { documentId: doc.id },
+              orderBy: { chunkIndex: 'asc' }
+            })
+
+            if (chunks.length === 0) {
+              throw new Error(`No text chunks found for document ${doc.name}`)
+            }
+
+            const chunkTexts = chunks.map(chunk => chunk.content)
+            
+            // Recalculate TF-IDF vectors (this is fast for small documents)
+            const { calculateTFIDF } = await import('@/utils/textProcessing')
+            const { vectors, vocabulary } = calculateTFIDF(chunkTexts)
+
+            return {
+              id: doc.id,
+              filename: doc.name,
+              chunks: chunkTexts,
+              vectors,
+              vocabulary
+            }
+          } catch (error) {
+            console.error(`Failed to load chunks for document ${doc.name}:`, error)
+            // Return fallback data
+            return {
+              id: doc.id,
+              filename: doc.name,
+              chunks: [`Content from ${doc.name} - please re-upload this document for better results.`],
+              vectors: [[0.1, 0.2, 0.3]],
+              vocabulary: ['sample', 'content', 'document']
+            }
           }
-        }
-        
-        // Fallback to empty data if not available
-        return {
-          id: doc.id,
-          filename: doc.name,
-          chunks: [`Content from ${doc.name} would be processed here.`],
-          vectors: [[0.1, 0.2, 0.3]],
-          vocabulary: ['sample', 'content', 'document']
-        }
-      })
+        })
+      )
 
       if (processedDocs.length === 0) {
         throw new Error('No processed documents available')
       }
 
+      // Debug logging
+      console.log('Processing query:', input.trim())
+      console.log('Available documents:', processedDocs.length)
+      processedDocs.forEach((doc, i) => {
+        console.log(`Document ${i + 1}: ${doc.filename}, chunks: ${doc.chunks.length}, vocab: ${doc.vocabulary.length}`)
+      })
+
       // Generate AI response using real semantic search
       const aiResult = await generateAIResponse(input.trim(), processedDocs)
+      
+      console.log('AI response generated:', {
+        answerLength: aiResult.answer.length,
+        sourcesCount: aiResult.sources.length,
+        confidence: aiResult.confidence
+      })
 
       const aiResponse: ChatMessage = {
         id: `msg_${Date.now() + 1}`,
